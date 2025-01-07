@@ -1,0 +1,72 @@
+# gcc/gmake makefile for pngcheck.
+# Greg Roelofs
+# Last modified:  17 October 2020
+#
+# Invoke via:
+#
+#	make -f Makefile.unx
+#
+# This makefile assumes zlib has already been built or downloaded and is in
+# a subdirectory at the same level as the current subdirectory (as indicated
+# by the ZPATH macro below).  Edit as appropriate.
+#
+# Note that the names of the dynamic and static zlib libraries used below may
+# change in later releases of the library.  This makefile builds statically
+# linked executables, but that can be changed by uncommenting the appropriate
+# ZLIB lines.
+
+
+# macros --------------------------------------------------------------------
+
+ZPATH = ../zlib
+ZINC = -I$(ZPATH)
+ZLIB = -L$(ZPATH) -lz
+#ZLIB = $(ZPATH)/libz.a
+
+INCS = $(ZINC)
+LIBS = $(ZLIB)
+
+CC = gcc
+LD = gcc
+RM = rm
+CFLAGS = -O -Wall $(INCS) -DUSE_ZLIB
+# [note that -Wall is a gcc-specific compilation flag ("all warnings on")]
+O = .o
+E =
+
+LDFLAGS =
+
+PROG = pngcheck
+PROG2 = pngsplit
+PROG3 = png-fix-IDAT-windowsize
+
+#OBJS  = $(PROG)$(O)
+OBJS =
+
+EXES = $(PROG)$(E) $(PROG2)$(E) $(PROG3)$(E)
+
+
+# implicit make rules -------------------------------------------------------
+
+.c$(O):
+	$(CC) -c $(CFLAGS) $<
+
+
+# dependencies --------------------------------------------------------------
+
+all:  $(EXES)
+
+$(PROG)$(E): $(PROG).c
+	$(CC) $(CFLAGS) -o $@ $(PROG).c $(LIBS)
+
+$(PROG2)$(E): gpl/$(PROG2).c
+	$(CC) $(CFLAGS) -o $@ gpl/$(PROG2).c $(LIBS)
+
+$(PROG3)$(E): gpl/$(PROG3).c
+	$(CC) $(CFLAGS) -o $@ gpl/$(PROG3).c $(LIBS)
+
+
+# maintenance ---------------------------------------------------------------
+
+clean:
+	$(RM) -f $(EXES) $(OBJS)

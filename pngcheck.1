@@ -1,0 +1,57 @@
+.TH PNGCHECK "1" "April 2021" "pngcheck 3.0.3" "User Commands"
+.SH NAME
+pngcheck \- manual page for pngcheck 3.0.3
+.SH SYNOPSIS
+.B pngcheck
+.RI [ \-7cpqtv ]
+.I file.{png|jng|mng}
+.RI [ file2.{png|jng|mng} \ [...]]
+.br
+.RB ...\ |\  pngcheck
+.RI [ \-7cpqstvx ]
+.br
+.B pngcheck
+.RI [ \-7cpqstvx ] \ file-containing-PNGs ...
+.SH DESCRIPTION
+PNGcheck, version 3.0.3 of 25 April 2021,
+by Alexander Lehmann, Andreas Dilger and Greg Roelofs.
+.PP
+Test PNG, JNG or MNG image files for corruption, and print size/type info.
+.SH OPTIONS
+.TP
+.B \-7
+print contents of tEXt chunks, escape chars >=128 (for 7\-bit terminals)
+.TP
+.B \-c
+colorize output (for ANSI terminals)
+.TP
+.B \-p
+print contents of PLTE, tRNS, hIST, sPLT and PPLT (can be used with
+.BR \-q )
+.TP
+.B \-q
+test quietly (output only errors)
+.TP
+.B \-s
+search for PNGs within another file
+.TP
+.B \-t
+print contents of tEXt chunks (can be used with
+.BR \-q )
+.TP
+.B \-v
+test verbosely (print most chunk data)
+.TP
+.B \-vv
+test very verbosely (decode & print line filters)
+.TP
+.B \-w
+suppress windowBits test (more\-stringent compression check)
+.TP
+.B \-x
+search for PNGs within another file and extract them when found
+.SH NOTE
+MNG support is more informational than conformance\-oriented.
+.SH "SEE ALSO"
+.BR pngsplit (1),
+.BR png-fix-IDAT-windowsize (1)

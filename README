@@ -1,0 +1,78 @@
+pngcheck version 3.0.3 of 25 April 2021
+
+This version fixes another (probable) security vulnerability discovered by
+"chiba of topsec alpha lab".  Ben Beasley of the Fedora Linux project fixed
+it, and I generalized it a bit to forestall other attempts by the code to
+keep decoding beyond the declared image dimensions.  As always, many thanks
+to Ben and to the various security researchers who continue to ferret out
+problematic code.
+
+I've also updated the MinGW32 cross-compiler makefile for both Win32 and Win64
+targets (i.e., there are two such makefiles now), but other than verifying
+that binaries come out the other end, these are COMPLETELY UNTESTED.  In
+particular, the printf() format "%td" for ptrdiff_t (pointer differences, i.e.,
+subtraction) doesn't appear to be supported under Windows, but I don't know
+what the appropriate type is.  So the five affected print statements presumably
+just won't work correctly.
+
+Here's a list of the major enhancements since version 1.98, which was the
+last release before I took over maintenance:
+
+ - zlib support (to test the compressed stream and, optionally, to print
+   out the image's row filters)
+ - support for all remaining known PNG chunks (conformance)
+ - complete support for all known MNG and JNG chunks (informational)
+ - extended support for printing palettes (includes transparency info and
+   histograms)
+ - optional color (text) output
+ - improved error-checking
+ - info on the compression factor of the image (expressed as a percentage,
+   where 0% is no compression and 100% would be total compression; note that
+   this can be negative since it counts PNG's chunk overhead against the
+   compression factor)
+ - png-fix-IDAT-windowsize utility
+ - pngsplit utility
+ - compilation support for Win32 (using MSVC), RISC OS, and Amiga
+
+Also, this "anti-enhancement" occurred in version 3.0.0 for security reasons:
+
+ - -f ("force continuation after major errors") option REMOVED
+
+There are also many fixes, of course, including ones from Tom Lane, Glenn
+Randers-Pehrson, Tom Zerucha, Paul Matzke, Darren Salt, John Bowler, and
+others.  Thanks also to Chris Nokleberg (brokensuite), Tim Pritlove, Bob
+Friesenhahn, the GraalOnline folks, giantbranch, chiba, Ben Beasley, and
+others for test images.  See the included CHANGELOG file for the complete,
+detailed list of who did what.
+
+Note that while MNG support is now complete in the sense of covering all
+registered chunk types, there are still numerous error conditions that
+pngcheck won't detect, plus a few non-error conditions that it will flag
+erroneously.  Some of those can and will be fixed (particularly the latter
+class), but many of them involve complex interactions between different
+chunk types and would require virtually a full MNG decoder engine, something
+that is unlikely ever to happen in pngcheck.  In other words, consider
+pngcheck a handy MNG debugging tool but not a full validator.  Use it in
+conjunction with the MNG specification and a libmng-based viewer for best
+results.  (PNG support, on the other hand, is pretty solid.)  Also use
+zlib 1.2.x for best results--older versions failed to detect a number of
+invalid deflate/zlib conditions, including out-of-range LZ77 distance codes.
+
+Originally I had hoped to add support for EBCDIC-based systems (and perhaps
+UTF-16 and UTF-32-based ones, if there are any for which "char" defaults to
+more than 8 bits), but there doesn't seem to be much point in that anymore.
+I'd still kind of like to extend the zlib support to include zTXt, iTXt, iCCP,
+etc., but given the pace of recent years ("nonexistent" would be fair), folks
+should definitely not hold their breath waiting for that.  Similarly, the code
+could do a better job with chunks whose data exceed the buffer size, and in
+general, immense if-else blocks (e.g., > 3000 lines) are extremely nasty and
+should be rewritten, but...yeah.  The gap between 2.3.0 and 2.4.0 (the two
+previous releases) was bigger than that between 2.3.0 and the creation of the
+PNG format itself. :-/  (Did we mention that PNG turned 25 in 2020?)
+
+But if there ever are additional updates, you might find them here:
+
+    http://www.libpng.org/pub/png/apps/pngcheck.html
+
+Greg Roelofs
+http://gregroelofs.com/greg_contact.html
