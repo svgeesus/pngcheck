@@ -33,7 +33,7 @@
  *
  *===========================================================================*/
 
-#define VERSION "3.0.3 of 25 April 2021"
+#define VERSION "3.0.4 of 8 December 2025"
 
 /*
  * NOTE:  current MNG support is informational; error-checking is MINIMAL!
@@ -48,6 +48,8 @@
  *   bKGD cHRM eXIf fRAc gAMA gIFg gIFt gIFx	// ancillary PNG chunks
  *   hIST iCCP iTXt oFFs pCAL pHYs sBIT sCAL
  *   sPLT sRGB sTER tEXt zTXt tIME tRNS
+ *
+ *   cICP mDCV cLLI                           // PNG 3e
  *
  *   cmOD cmPP cpIp mkBF mkBS mkBT mkTS pcLb	// known private PNG chunks
  *   prVW spAL					// [msOG = ??]
@@ -1034,6 +1036,7 @@ int pngcheck(FILE *fp, char *fname, int searching, FILE *fpOut)
   int have_iCCP = 0, have_oFFs = 0, have_pCAL = 0, have_pHYs = 0, have_sBIT = 0;
   int have_sCAL = 0, have_sRGB = 0, have_sTER = 0, have_tIME = 0, have_tRNS = 0;
   int have_SAVE = 0, have_TERM = 0, have_MAGN = 0, have_pHYg = 0;
+  int have_cICP = 0;
   int top_level = 1;
   ulg zhead = 1;   /* 0x10000 indicates both zlib header bytes read */
   ulg crc, filecrc;
@@ -3156,6 +3159,188 @@ FIXME: add support for decompressing/printing zTXt
       }
       have_tRNS = 1;
       last_is_IDAT = last_is_JDAT = 0;
+
+    /*===========================================*/
+    /* PNG Third Edition new chunks              */
+
+    /*------*
+    | cICP |
+    *------*/
+    /*  https://w3c.github.io/png/#cICP-chunk */
+
+    /* chunk ordering and chunk length tests */
+  } else if (strcmp(chunkid, "cICP") == 0) {
+    if (!mng && have_cICP) {
+      printf("%s  multiple cICP not allowed\n", verbose? ":":fname);
+      set_err(kMinorError);
+    } else if (!mng && have_PLTE) {
+      printf("%s  %smust precede PLTE\n",
+              verbose? ":":fname, verbose? "":"cICP ");
+      set_err(kMinorError);
+    } else if (!mng && (have_IDAT || have_JDAT)) {
+      printf("%s  %smust precede %cDAT\n",
+              verbose? ":":fname, verbose? "":"cICP ", have_IDAT? 'I':'J');
+      set_err(kMinorError);
+    } else if (sz != 4) {
+      printf("%s  invalid %slength\n",
+              verbose? ":":fname, verbose? "":"cICP ");
+      set_err(kMajorError);
+    }
+    if (no_err(kMinorError)) {
+      char primaries, transfer, fullrange;
+
+      /* check for obviously wrong values first */
+      if (buffer[2] > 0) {
+        printf("%s  %s matrix coefficients must be zero (RGB), found %d\n",
+                verbose? ":":fname, verbose? "":"cICP ", buffer[2]);
+        set_err(kMinorError);
+        } else if (buffer[3] > 1) {
+          printf("%s  %s invalid video full range flag, found %d\n",
+                verbose? ":":fname, verbose? "":"cICP ", buffer[3]);
+        set_err(kMinorError);
+        } else if (buffer[0] > 22) {
+          printf("%s %s reserved color primaries, found %d\n",
+                verbose? ":":fname, verbose? "":"cICP ", buffer[0]);
+        set_err(kMinorError);
+        } else if (buffer[1] > 18) {
+          printf("%s %s reserved transfer characteristics, found %d\n",
+                verbose? ":":fname, verbose? "":"cICP ", buffer[0]);
+        set_err(kMinorError);
+        } else {
+          primaries = buffer[0];
+          transfer = buffer[1];
+          fullrange = buffer [2];
+          double wx, wy, rx, ry, gx, gy, bx, by;
+
+          if (primaries == 1) {
+            if (transfer == 1) { // 709
+              printf("\n%s %s  Rec. ITU-R BT.709-6 \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+            } else if (transfer == 8) { // linear
+              printf("\n%s %s  linear-light sRGB \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+            } else if (transfer == 13) { // sRGB
+              printf("\n%s %s  IEC 61966-2-1 sRGB \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+            } else { // unknown transfer function for these primaries
+              printf("\n%s %s  unknown sRGB-like \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+                set_err(kMinorError);
+            }
+            wx = 0.3127;
+            wy = 0.3290;
+            rx = 0.640;
+            ry = 0.330;
+            gx = 0.300;
+            gy = 0.600;
+            bx = 0.150;
+            by = 0.060;
+
+          } else if (primaries == 9) {
+            if (transfer == 14) { // 2020 10-bit
+              printf("\n%s  %s  Rec. ITU-R BT.2020-2 (10-bit system) \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+            } else if (transfer == 15) { // 2020 12-bit 
+              printf("\n%s  %s  Rec. ITU-R BT.2020-2 (12-bit system) \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+            } else if (transfer == 16) { // PQ
+              printf("\n%s %s  Rec. ITU-R BT.2100-2 perceptual quantization (PQ) system \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+            } else if (transfer == 18) { // HLG
+              printf("\n%s %s  Rec. ITU-R BT.2100-2 hybrid log-gamma (HLG) system \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+            } else { // unknown transfer function for these primaries
+              printf("\n%s %s unknown rec2020-like \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+                set_err(kMinorError);
+          }
+            wx = 0.3127;
+            wy = 0.3290;
+            rx = 0.708;
+            ry = 0.292;
+            gx = 0.170;
+            gy = 0.797;
+            bx = 0.131;
+            by = 0.046;
+
+          } else if (primaries == 11) { // DCI P3
+            if (transfer == 17) { 
+              printf("\n%s %s  SMPTE RP 431-2 with SMPTE ST 428-1 D-Cinema Distribution Master (DCI-P3) \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+
+          } else { // unknown transfer function for these primaries
+              printf("\n%s %s  unknown DCI-P3-like \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+                set_err(kMinorError);
+          }
+            wx = 0.314;
+            wy = 0.351;
+            rx = 0.680;
+            ry = 0.320;
+            gx = 0.265;
+            gy = 0.690;
+            bx = 0.150;
+            by = 0.060;
+
+          } else if (primaries == 12) { // P3D65
+            if (transfer == 13) { // Display P3 uses the sRGB transfer function
+              printf("\n%s %s  Display P3 \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+          } else { // unknown transfer function for these primaries
+              printf("\n%s %s  unknown D65 P3-like \n",
+                verbose? ":":fname, verbose? "":"cICP ");
+                set_err(kMinorError);
+              }
+            wx = 0.3127;
+            wy = 0.3290;
+            rx = 0.680;
+            ry = 0.320;
+            gx = 0.265;
+            gy = 0.690;
+            bx = 0.150;
+            by = 0.060;
+
+          } else { // mystery meat
+            if (verbose) {
+              printf("unrecognised (reserved or historical)\n");
+              printf("primaries: %d \n", primaries);
+              printf("transfer function: %d \n", transfer);
+              printf(fullrange? "    Narrow range \n" : "    Full range \n");
+              set_err(kMinorError);
+            }
+          }
+
+          if (verbose && no_err(kMinorError)) {
+            printf("    White x = %0g y = %0g,  Red x = %0g y = %0g\n",
+                  wx, wy, rx, ry);
+            printf("    Green x = %0g y = %0g,  Blue x = %0g y = %0g\n",
+                  gx, gy, bx, by);
+            printf(fullrange? "    Narrow range \n" : "    Full range \n");
+          }
+
+          have_cICP = 1;
+          last_is_IDAT = last_is_JDAT = 0;
+        }
+    }
+    /*------*
+    | cLLi |
+    *------*/
+    } else if (strcmp(chunkid, "cLLi") == 0) {
+            if (verbose)
+        printf("\n    "
+          "Old version of CLLI, do not use\n");
+        set_err(kMinorError);
+        last_is_IDAT = last_is_JDAT = 0;
+
+    /*------*
+    | mDCv |
+    *------*/
+    } else if (strcmp(chunkid, "mDCv") == 0) {
+            if (verbose)
+        printf("\n    "
+          "Old version of mDCV, do not use\n");
+        set_err(kMinorError);
+        last_is_IDAT = last_is_JDAT = 0;
 
     /*===========================================*/
     /* identifiable private chunks; guts unknown */
