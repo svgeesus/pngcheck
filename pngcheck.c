@@ -1036,7 +1036,7 @@ int pngcheck(FILE *fp, char *fname, int searching, FILE *fpOut)
   int have_iCCP = 0, have_oFFs = 0, have_pCAL = 0, have_pHYs = 0, have_sBIT = 0;
   int have_sCAL = 0, have_sRGB = 0, have_sTER = 0, have_tIME = 0, have_tRNS = 0;
   int have_SAVE = 0, have_TERM = 0, have_MAGN = 0, have_pHYg = 0;
-  int have_cICP = 0;
+  int have_cICP = 0, have_mDCV = 0;
   int top_level = 1;
   ulg zhead = 1;   /* 0x10000 indicates both zlib header bytes read */
   ulg crc, filecrc;
@@ -3322,6 +3322,82 @@ FIXME: add support for decompressing/printing zTXt
           last_is_IDAT = last_is_JDAT = 0;
         }
     }
+
+    /*------*
+    | mDCV |
+    *------*/
+    /* https://w3c.github.io/png/#mDCV-chunk */
+    } else if (strcmp(chunkid, "mDCV") == 0) {
+      if (!mng && have_mDCV) {
+        printf("%s  multiple mDCV not allowed\n", verbose? ":":fname);
+        set_err(kMinorError);
+      } else if (!mng && have_PLTE) {
+        printf("%s  %smust precede PLTE\n",
+               verbose? ":":fname, verbose? "":"mDCV ");
+        set_err(kMinorError);
+      } else if (!mng && (have_IDAT || have_JDAT)) {
+        printf("%s  %smust precede %cDAT\n",
+               verbose? ":":fname, verbose? "":"mDCV ", have_IDAT? 'I':'J');
+        set_err(kMinorError);
+      } else if (sz != 24) {
+        printf("%s  invalid %slength\n",
+               verbose? ":":fname, verbose? "":"mDCV ");
+        set_err(kMajorError);
+      }
+      if (no_err(kMinorError)) {
+        double rx, ry, gx, gy, bx, by, wx, wy, maxlum, minlum;
+
+        /* notice different order, length, and divisor, compared to cHRM */
+        rx = (double)SH(buffer)/50000;
+        ry = (double)SH(buffer+2)/50000;
+        gx = (double)SH(buffer+4)/50000;
+        gy = (double)SH(buffer+6)/50000;
+        bx = (double)SH(buffer+8)/50000;
+        by = (double)SH(buffer+10)/50000;
+        wx = (double)SH(buffer+12)/50000;
+        wy = (double)SH(buffer+14)/50000;
+        maxlum = (double)LG(buffer+16)/10000;
+        minlum = (double)LG(buffer+20)/10000;
+
+        if (wx < 0 || wx > 0.8 || wy < 0 || wy > 0.8 || wx + wy > 1.0) {
+          printf("%s  invalid mastering %swhite point %0g %0g\n",
+                 verbose? ":":fname, verbose? "":"mDCV ", wx, wy);
+          set_err(kMinorError);
+        } else if (rx < 0 || rx > 0.8 || ry < 0 || ry > 0.8 || rx + ry > 1.0) {
+          printf("%s  invalid mastering %sred point %0g %0g\n",
+                 verbose? ":":fname, verbose? "":"mDCV ", rx, ry);
+          set_err(kMinorError);
+        } else if (gx < 0 || gx > 0.8 || gy < 0 || gy > 0.8 || gx + gy > 1.0) {
+          printf("%s  invalid mastering %sgreen point %0g %0g\n",
+                 verbose? ":":fname, verbose? "":"mDCV ", gx, gy);
+          set_err(kMinorError);
+        } else if (bx < 0 || bx > 0.8 || by < 0 || by > 0.8 || bx + by > 1.0) {
+          printf("%s  invalid mastering %sblue point %0g %0g\n",
+                 verbose? ":":fname, verbose? "":"mDCV ", bx, by);
+          set_err(kMinorError);
+        } else if (maxlum > 10000) {
+          printf("%s  invalid mastering %smax luminance %0g cd/m^2\n",
+                verbose? ":":fname, verbose? "":"mDCV ", maxlum);
+        } else if (minlum > 10) {
+          printf("%s  invalid mastering %smin luminance %0g cd/m^2\n",
+                verbose? ":":fname, verbose? "":"mDCV ", minlum);
+        }
+        else if (verbose) {
+          printf("\n    Mastering Display\n");
+        }
+
+        if (verbose && no_err(kMinorError)) {
+          printf("    White x = %0g y = %0g,  Red x = %0g y = %0g\n",
+                 wx, wy, rx, ry);
+          printf("    Green x = %0g y = %0g,  Blue x = %0g y = %0g\n",
+                 gx, gy, bx, by);
+          printf("    Maximum luminance = %0g cd/m^2\n", maxlum);
+          printf("    Minimum luminance = %0g cd/m^2\n", minlum);
+        }
+      }
+      have_mDCV = 1;
+      last_is_IDAT = last_is_JDAT = 0;
+
     /*------*
     | cLLi |
     *------*/
