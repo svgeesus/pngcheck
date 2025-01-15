@@ -1036,7 +1036,7 @@ int pngcheck(FILE *fp, char *fname, int searching, FILE *fpOut)
   int have_iCCP = 0, have_oFFs = 0, have_pCAL = 0, have_pHYs = 0, have_sBIT = 0;
   int have_sCAL = 0, have_sRGB = 0, have_sTER = 0, have_tIME = 0, have_tRNS = 0;
   int have_SAVE = 0, have_TERM = 0, have_MAGN = 0, have_pHYg = 0;
-  int have_cICP = 0, have_mDCV = 0;
+  int have_cICP = 0, have_mDCV = 0, have_cLLI = 0;
   int top_level = 1;
   ulg zhead = 1;   /* 0x10000 indicates both zlib header bytes read */
   ulg crc, filecrc;
@@ -3397,6 +3397,51 @@ FIXME: add support for decompressing/printing zTXt
       }
       have_mDCV = 1;
       last_is_IDAT = last_is_JDAT = 0;
+
+    /*------*
+    | cLLI |
+    *------*/
+    /* https://w3c.github.io/png/#cLLI-chunk */
+    } else if (strcmp(chunkid, "cLLI") == 0) {
+      if (!mng && have_cLLI) {
+        printf("%s  multiple cLLI not allowed\n", verbose? ":":fname);
+        set_err(kMinorError);
+      } else if (!mng && have_PLTE) {
+        printf("%s  %smust precede PLTE\n",
+               verbose? ":":fname, verbose? "":"cLLI ");
+        set_err(kMinorError);
+      } else if (!mng && (have_IDAT || have_JDAT)) {
+        printf("%s  %smust precede %cDAT\n",
+               verbose? ":":fname, verbose? "":"cLLI ", have_IDAT? 'I':'J');
+        set_err(kMinorError);
+      } else if (sz != 8) {
+        printf("%s  invalid %slength\n",
+               verbose? ":":fname, verbose? "":"cLLI ");
+        set_err(kMajorError);
+      }
+      if (no_err(kMinorError)) {
+        double maxCLL, maxFALL;
+
+        maxCLL  = (double)LG(buffer)/10000;
+        maxFALL = (double)LG(buffer+4)/10000;
+
+      if (maxCLL > 10000) {
+          printf("%s  invalid %smaximum light level %0g\n",
+                 verbose? ":":fname, verbose? "":"cLLI ", maxCLL);
+          set_err(kMinorError);
+      } else if (verbose) {
+          printf("\n");
+      }
+      if (verbose && no_err(kMinorError)) {
+          printf("    Maximum content light level = %0g cd/m^2\n", maxCLL);
+          printf("    Maximum frame average light level = %0g cd/m^2\n", maxFALL);
+        }
+      }
+
+      have_cLLI = 1;
+      last_is_IDAT = last_is_JDAT = 0;
+
+
 
     /*------*
     | cLLi |
