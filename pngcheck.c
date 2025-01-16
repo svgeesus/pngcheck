@@ -3209,7 +3209,7 @@ FIXME: add support for decompressing/printing zTXt
         } else {
           primaries = buffer[0];
           transfer = buffer[1];
-          fullrange = buffer [2];
+          fullrange = buffer [3];
           double wx, wy, rx, ry, gx, gy, bx, by;
 
           if (primaries == 1) {
@@ -3315,7 +3315,9 @@ FIXME: add support for decompressing/printing zTXt
                   wx, wy, rx, ry);
             printf("    Green x = %0g y = %0g,  Blue x = %0g y = %0g\n",
                   gx, gy, bx, by);
-            printf(fullrange? "    Narrow range \n" : "    Full range \n");
+            // printf(fullrange? "    Narrow range \n" : "    Full range \n");
+            if (fullrange == 0) printf("    Narrow range \n");
+            if (fullrange == 1) printf("    Full range \n");
           }
 
           have_cICP = 1;
