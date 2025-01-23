@@ -2155,6 +2155,9 @@ FIXME: make sure bit 31 (0x80000000) is 0
       } else if (png && have_eXIf) {
         printf("%s  multiple eXIf not allowed\n", verbose? ":":fname);
         set_err(kMinorError);
+      } else if (png && have_IDAT) {
+        printf("%s  eXIf after IDAT no longer allowed\n", verbose? ":":fname);
+        set_err(kMinorError);
       }
       else if (verbose /* && no_err(kMinorError) */) {
         if (SH(buffer) == 0x4d4d && buffer[2] == 0 && buffer[3] == 0x2a) {
