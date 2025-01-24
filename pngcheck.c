@@ -17,8 +17,9 @@
 
 /*============================================================================
  *
- *   Copyright 1995-2021 by Alexander Lehmann <lehmann@usa.net>,
+ *   Copyright 1995-2025 by Alexander Lehmann <lehmann@usa.net>,
  *                          Andreas Dilger <adilger@enel.ucalgary.ca>,
+ *                          Chris Lilley <chris@w3.org>,
  *                          Glenn Randers-Pehrson <randeg@alum.rpi.edu>,
  *                          Greg Roelofs <newt@pobox.com>,
  *                          John Bowler <jbowler@acm.org>,
