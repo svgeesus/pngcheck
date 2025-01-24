@@ -50,6 +50,8 @@
  *   hIST iCCP iTXt oFFs pCAL pHYs sBIT sCAL
  *   sPLT sRGB sTER tEXt zTXt tIME tRNS
  *
+ *   acTL fcTL fdAT     // animated PNG
+ *
  *   cICP mDCV cLLI                           // PNG 3e
  *
  *   cmOD cmPP cpIp mkBF mkBS mkBT mkTS pcLb	// known private PNG chunks
