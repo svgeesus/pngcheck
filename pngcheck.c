@@ -33,7 +33,7 @@
  *
  *===========================================================================*/
 
-#define VERSION "3.0.4 of 8 December 2025"
+#define VERSION "unofficial of 24 Jan 2025"
 
 /*
  * NOTE:  current MNG support is informational; error-checking is MINIMAL!
