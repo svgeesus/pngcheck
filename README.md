@@ -14,11 +14,12 @@ features:
 
 It also warns if [`eXIf`](https://w3c.github.io/png/#eXIf) is found after the image data [`IDAT`](https://w3c.github.io/png/#11IDAT), 
 which will be ignored by web browsers
-and is no longer valid in PNG Third Edition.
+and is [no longer valid](https://w3c.github.io/png/#5ChunkOrdering) in PNG Third Edition.
 
 Sample usage:
 
 ```text
+$ pngcheck -c -v test_pattern-PQ.png
 File: test_pattern-PQ.png (12033 bytes)
   chunk IHDR at offset 0x0000c, length 13
     1024 x 1024 image, 48-bit RGB, non-interlaced
