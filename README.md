@@ -1,4 +1,4 @@
-# pngcheck unofficial of 24 Jan 2025
+# pngcheck unofficial of 03 Feb 2025
 
 pngcheck is a command-line utility to check PNG image files for validity 
 and to give information about metadate inside the file
@@ -11,6 +11,7 @@ features:
 - Coding Independent Code Points [`cICP`](https://w3c.github.io/png/#cICP-chunk)
 - Mastering Display Color Volume [`mDCV`](https://w3c.github.io/png/#mDCV-chunk)
 - Content Light Level Information [`cLLI`](https://w3c.github.io/png/#cLLI-chunk)
+- Animated PNG [`acTL`](https://w3c.github.io/png/#acTL-chunk), [`fcTL`](https://w3c.github.io/png/#fcTL-chunk) and [`fdAT`](https://w3c.github.io/png/#fdAT-chunk)
 
 It also warns if [`eXIf`](https://w3c.github.io/png/#eXIf) is found after the image data [`IDAT`](https://w3c.github.io/png/#11IDAT), 
 which will be ignored by web browsers
