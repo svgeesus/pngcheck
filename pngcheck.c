@@ -1039,8 +1039,19 @@ int pngcheck(FILE *fp, char *fname, int searching, FILE *fpOut)
   int have_iCCP = 0, have_oFFs = 0, have_pCAL = 0, have_pHYs = 0, have_sBIT = 0;
   int have_sCAL = 0, have_sRGB = 0, have_sTER = 0, have_tIME = 0, have_tRNS = 0;
   int have_SAVE = 0, have_TERM = 0, have_MAGN = 0, have_pHYg = 0;
+  int have_acTL = 0, have_fcTL = 0, have_fdAT = 0;
   int have_cICP = 0, have_mDCV = 0, have_cLLI = 0;
   int top_level = 1;
+
+  // Animated PNG stuff
+  ulg num_frames = 0L, num_plays = 0L, num_fcTL = 0L;
+  int first_frame_IDAT = 0;
+  ulg sequence_number = 0L, frame_width = 0L, frame_height = 0L;
+  ulg x_offset = 0L, y_offset = 0L;
+  unsigned int delay_num = 0, delay_den = 0;
+  uch dispose_op = 0, blend_op = 0;
+  ulg next_sequence_number = 0L;
+
   ulg zhead = 1;   /* 0x10000 indicates both zlib header bytes read */
   ulg crc, filecrc;
   ulg layers = 0L, frames = 0L;
@@ -2012,6 +2023,10 @@ FIXME: make sure bit 31 (0x80000000) is 0
       } else if (jng && have_JDAT <= 0) {
         printf("%s  no JDAT chunks\n", verbose? ":":fname);
         set_err(kMajorError);
+      } else if (have_acTL && (num_frames != num_fcTL)) {
+        printf("%s  Expected %lu frames, but found %lu\n", verbose? ":":fname, num_frames, num_fcTL);
+        set_err(kMinorError);
+      
 /*
  *    FIXME:  what's minimum valid JPEG/JFIF length?
  *    } else if (jng && have_JDAT < 10) {
@@ -3164,6 +3179,171 @@ FIXME: add support for decompressing/printing zTXt
         }
       }
       have_tRNS = 1;
+      last_is_IDAT = last_is_JDAT = 0;
+
+    /*===========================================*/
+    /* Animated PNG chunks                       */
+
+     /*------*
+     | acTL |
+     *------*/
+    } else if (strcmp(chunkid, "acTL") == 0) {
+      if (have_IDAT) {
+        printf("%s  acTL must be before first IDAT\n", verbose? ":":fname);
+        set_err(kMinorError);
+      } else if (have_acTL) {
+        printf("%s  multiple acTL not allowed\n", verbose? ":":fname);
+        set_err(kMinorError);
+      } else if (sz != 8) {
+      printf("%s  invalid %slength\n",
+              verbose? ":":fname, verbose? "":"acTL ");
+      set_err(kMinorError);
+    }
+    if (no_err(kMinorError)) {
+        num_frames = LG(buffer);
+        num_plays  = LG(buffer+4);
+        // printf("  Animated PNG, %d frames, %d plays\n", num_frames, num_plays);
+      if (num_frames == 0) {
+        printf("%s  %snumber of frames cannot be zero \n",
+                verbose? ":":fname, verbose? "":"acTL ");
+        set_err(kMinorError);
+      } else if (verbose) {
+        if (num_plays == 0) {
+          printf("\n    Animated PNG, %lu frames, plays continuously\n", num_frames);
+        } else {
+          printf("\n    Animated PNG, %lu frames, plays %lu times\n", num_frames, num_plays);
+        }
+      }
+    }
+
+      have_acTL = 1;
+      last_is_IDAT = last_is_JDAT = 0;
+
+     /*------*
+     | fcTL |
+     *------*/
+    } else if (strcmp(chunkid, "fcTL") == 0) {
+      if (sz != 26) {
+        printf("%s  invalid %slength \n",
+              verbose? ":":fname, verbose? "":"fcTL ");
+        set_err(kMinorError);
+      }
+
+      if (no_err(kMinorError)) {
+        sequence_number = LG(buffer);
+        frame_width = LG(buffer+4);
+        frame_height = LG(buffer+8);
+        x_offset = LG(buffer+12);
+        y_offset = LG(buffer+16);
+        delay_num = LG(buffer+20); 
+        delay_den = SH(buffer+22);
+        dispose_op = *(buffer+24);
+        blend_op = *(buffer+25);
+      }
+
+      // First frame is IDAT checks
+      if (!have_fcTL && !have_IDAT) {
+        if (x_offset > 0 || y_offset > 0) {
+          printf("%s  First frame is IDAT, so offsets must be zero\n", verbose? ":":fname);
+          set_err(kMinorError);
+        }
+        if (frame_height != h || frame_width != w) {
+          printf("%s  First frame is IDAT, so first frame must be same size as static image\n", verbose? ":":fname);
+          set_err(kMinorError);
+        }
+      }
+
+      // Sequence numbers
+      if (!have_fcTL && (sequence_number != 0)) {
+        // is this the first fcTL?
+        printf("%s  sequence numbers must start at zero\n", verbose? ":":fname);
+        set_err(kMinorError);
+      } else if (sequence_number != next_sequence_number){
+        // are sequence numbers increasing?
+        printf("%s  sequence numbers must be sequential\n", verbose? ":":fname);
+        set_err(kMinorError);
+      } else {
+        next_sequence_number++;
+      }
+
+      // Widths, heights, and offsets
+      if ((frame_width == 0) || (frame_height == 0)) {
+        printf("%s frame width and height must not be zero\n", verbose? ":":fname);
+        set_err(kMinorError);
+      }
+      if ((frame_width + x_offset > w) || (frame_height + y_offset > h)) {
+        printf("%s  frame must be rendered within image bounds\n", verbose? ":":fname);
+        set_err(kMinorError);
+      }
+
+      // Delays
+      if (delay_den == 0) {
+        // If the denominator is 0, it is to be treated as if it were 100 
+        delay_den = 100;
+      }
+
+      // Dispose
+      if (dispose_op > 2) {
+        printf("%s  invalid dispose operator %u\n", verbose? ":":fname, dispose_op);
+        set_err(kMinorError);
+      }
+
+      // Blend
+      if (blend_op > 1) {
+        printf("%s  invalid blend operator %u\n", verbose? ":":fname, blend_op);
+        set_err(kMinorError);
+      }
+
+      if (no_err(kMinorError) && verbose) {
+        printf("\n    Frame, sequence number %lu\n", sequence_number);
+        printf("    Width %lu, height %lu starting at (%lu, %lu)\n",
+          frame_width, frame_height, x_offset, y_offset);
+        printf("    Frame delay %u (%u / %u) sec\n", delay_num/delay_den, delay_num, delay_den);
+        if (dispose_op == 0) {
+          printf("    No disposal before next frame\n");
+        } else if (dispose_op == 1) {
+          printf("    Cleared to transparent black before next frame\n");
+        } else {
+          printf("    Reverts to previous contents before next frame\n");
+        }
+        if (blend_op == 0) {
+          printf("    Frame overwrites buffer\n");
+        } else {
+          printf("    Frame composites (source over) with buffer\n");
+        }
+      }
+
+      have_fcTL = 1;
+      num_fcTL++;
+      last_is_IDAT = last_is_JDAT = 0;
+
+    /*------*
+     | fdAT |
+     *------*/
+    } else if (strcmp(chunkid, "fdAT") == 0) {
+      if (sz < 4) {
+        printf("%s  invalid %slength (must be at least 4 bytes)\n",
+              verbose? ":":fname, verbose? "":"fdAT ");
+        set_err(kMinorError);
+      }
+            
+      if (no_err(kMinorError)) {
+        sequence_number = LG(buffer);
+      }
+
+      if (sequence_number != next_sequence_number){
+        // are sequence numbers increasing?
+        printf("%s  sequence numbers must be sequential\n", verbose? ":":fname);
+        set_err(kMinorError);
+      } else {
+        next_sequence_number++;
+      }
+
+      if (no_err(kMinorError) && verbose) {
+        printf("\n    Frame data, sequence number %lu\n", sequence_number);
+      }
+
+      have_fdAT = 1;
       last_is_IDAT = last_is_JDAT = 0;
 
     /*===========================================*/
@@ -5155,12 +5335,21 @@ FIXME: add support for decompressing/printing zTXt
           global_error? warnings_detected : no_errors_detected, fname,
           num_chunks, sgn, cfactor/10, cfactor%10);
       } else if (!quiet) {
-        printf("%s: %s%s%s (%ldx%ld, %d-bit %s%s, %sinterlaced, %s%d.%d%%).\n",
+        printf("%s: %s%s%s (%ldx%ld, %d-bit %s%s, %sinterlaced, ",
           global_error? brief_warn : brief_OK,
           color? COLOR_YELLOW:"", fname, color? COLOR_NORMAL:"",
           w, h, bitdepth, (ityp > 6)? png_type[1] : U2NAME(ityp, png_type),
           (ityp == 3 && have_tRNS)? "+trns" : "",
-          lace? "" : "non-", sgn, cfactor/10, cfactor%10);
+          lace? "" : "non-");
+
+        if (have_acTL) {
+          printf("animated (%lu frame%s), ", num_frames, (num_frames>1)? "s" : "");
+        } else {
+          printf("static, ");
+        }
+
+        printf("%s%d.%d%%).\n",
+          sgn, cfactor/10, cfactor%10);
       }
     }
 
