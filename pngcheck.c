@@ -1045,7 +1045,7 @@ int pngcheck(FILE *fp, char *fname, int searching, FILE *fpOut)
 
   // Animated PNG stuff
   ulg num_frames = 0L, num_plays = 0L, num_fcTL = 0L;
-  int first_frame_IDAT = 0;
+  int first_frame_IDAT = 0, just_seen_fcTL = 0;
   ulg sequence_number = 0L, frame_width = 0L, frame_height = 0L;
   ulg x_offset = 0L, y_offset = 0L;
   unsigned int delay_num = 0, delay_den = 0;
@@ -2026,6 +2026,10 @@ FIXME: make sure bit 31 (0x80000000) is 0
       } else if (have_acTL && (num_frames != num_fcTL)) {
         printf("%s  Expected %lu frames, but found %lu\n", verbose? ":":fname, num_frames, num_fcTL);
         set_err(kMinorError);
+      } else if (have_acTL && just_seen_fcTL) {
+        printf("%s  Missing fdAT after fcTL\n", verbose? ":":fname);
+        set_err(kMinorError);
+      
       
 /*
  *    FIXME:  what's minimum valid JPEG/JFIF length?
@@ -3252,6 +3256,11 @@ FIXME: add support for decompressing/printing zTXt
           set_err(kMinorError);
         }
       }
+      // Missing fdAT check
+      if (just_seen_fcTL) {
+        printf("%s  At least one fdAT is required for each frame (except first, if IDAT)\n", verbose? ":":fname);
+        set_err(kMinorError);
+      }
 
       // Sequence numbers
       if (!have_fcTL && (sequence_number != 0)) {
@@ -3314,6 +3323,7 @@ FIXME: add support for decompressing/printing zTXt
       }
 
       have_fcTL = 1;
+      just_seen_fcTL = 1;
       num_fcTL++;
       last_is_IDAT = last_is_JDAT = 0;
 
@@ -3344,6 +3354,7 @@ FIXME: add support for decompressing/printing zTXt
       }
 
       have_fdAT = 1;
+      just_seen_fcTL = 0;
       last_is_IDAT = last_is_JDAT = 0;
 
     /*===========================================*/
