@@ -2003,6 +2003,7 @@ FIXME: make sure bit 31 (0x80000000) is 0
       if (zlib_error > 0)  /* our flag, not zlib's (-1 means normal exit) */
         set_err(kMajorError);
 #endif /* USE_ZLIB */
+      just_seen_fcTL = 0;
       last_is_IDAT = 1;
       last_is_JDAT = 0;
 
