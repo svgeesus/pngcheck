@@ -3240,7 +3240,7 @@ FIXME: add support for decompressing/printing zTXt
         frame_height = LG(buffer+8);
         x_offset = LG(buffer+12);
         y_offset = LG(buffer+16);
-        delay_num = LG(buffer+20); 
+        delay_num = SH(buffer+20); 
         delay_den = SH(buffer+22);
         dispose_op = *(buffer+24);
         blend_op = *(buffer+25);
