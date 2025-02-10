@@ -393,7 +393,7 @@ static const char *eqn_type[] = {			/* pCAL */
   "physical_value = p0 + p1 * sinh(p2 * (original_sample - p3) / (x1-x0))"
 };
 
-static const int eqn_params[] = { 2, 3, 3, 4 };		/* pCAL */
+static const unsigned int eqn_params[] = { 2, 3, 3, 4 };		/* pCAL */
 
 static const char *rendering_intent[] = {		/* sRGB */
   "perceptual",
@@ -1023,7 +1023,7 @@ ulg gcf(ulg a, ulg b)
 
 int pngcheck(FILE *fp, char *fname, int searching, FILE *fpOut)
 {
-  int i, j;
+  unsigned int i, j;
   long sz;  /* FIXME:  should be ulg (not using negative values as flags...) */
   uch magic[8];
   char chunkid[5] = {'\0', '\0', '\0', '\0', '\0'};
@@ -1039,13 +1039,13 @@ int pngcheck(FILE *fp, char *fname, int searching, FILE *fpOut)
   int have_iCCP = 0, have_oFFs = 0, have_pCAL = 0, have_pHYs = 0, have_sBIT = 0;
   int have_sCAL = 0, have_sRGB = 0, have_sTER = 0, have_tIME = 0, have_tRNS = 0;
   int have_SAVE = 0, have_TERM = 0, have_MAGN = 0, have_pHYg = 0;
-  int have_acTL = 0, have_fcTL = 0, have_fdAT = 0;
+  int have_acTL = 0, have_fcTL = 0;
   int have_cICP = 0, have_mDCV = 0, have_cLLI = 0;
   int top_level = 1;
 
   // Animated PNG stuff
   ulg num_frames = 0L, num_plays = 0L, num_fcTL = 0L;
-  int first_frame_IDAT = 0, just_seen_fcTL = 0;
+  int just_seen_fcTL = 0;
   ulg sequence_number = 0L, frame_width = 0L, frame_height = 0L;
   ulg x_offset = 0L, y_offset = 0L;
   unsigned int delay_num = 0, delay_den = 0;
@@ -1055,11 +1055,11 @@ int pngcheck(FILE *fp, char *fname, int searching, FILE *fpOut)
   ulg zhead = 1;   /* 0x10000 indicates both zlib header bytes read */
   ulg crc, filecrc;
   ulg layers = 0L, frames = 0L;
-  long num_chunks = 0L;
-  long w = 0L, h = 0L;
-  long mng_width = 0L, mng_height = 0L;
+  ulg num_chunks = 0L;
+  ulg w = 0L, h = 0L;
+  ulg mng_width = 0L, mng_height = 0L;
   int vlc = -1, lc = -1;
-  int bitdepth = 0, sampledepth = 0, ityp = 1, jtyp = 0, lace = 0, nplte = 0;
+  unsigned int bitdepth = 0, sampledepth = 0, ityp = 1, jtyp = 0, lace = 0, nplte = 0;
   int jbitd = 0, alphadepth = 0;
   int did_stat = 0;
   printbuf_state prbuf_state;
@@ -1745,11 +1745,11 @@ FIXME: make sure bit 31 (0x80000000) is 0
 #ifdef USE_ZLIB
       if (check_zlib && !zlib_error) {
         static uch *p;   /* always points to next filter byte */
-        static int cur_y, cur_pass, cur_xoff, cur_yoff, cur_xskip, cur_yskip;
+        static unsigned int cur_y, cur_pass, cur_xoff, cur_yoff, cur_xskip, cur_yskip;
         static long cur_width, cur_linebytes;
         static long numfilt, numfilt_this_block, numfilt_total, numfilt_pass[7];
         uch *eod;
-        int err=Z_OK;
+        unsigned int err=Z_OK;
 
         zstrm.next_in = buffer;
         zstrm.avail_in = toread;
@@ -1776,7 +1776,7 @@ FIXME: make sure bit 31 (0x80000000) is 0
           numfilt = 0L;
           first_idat = 0;
           if (lace) {   /* loop through passes to calculate total filters */
-            int passm1, yskip=0, yoff=0, xoff=0;
+            unsigned int passm1, yskip=0, yoff=0, xoff=0;
 
             if (verbose)  /* GRR FIXME? could move this calc outside USE_ZLIB */
               printf("    rows per pass%s: ",
@@ -2533,7 +2533,7 @@ FIXME: make sure bit 31 (0x80000000) is 0
           long x0 = LG(buffer+name_len+1);	/* already checked sz */
           long x1 = LG(buffer+name_len+5);
           int eqn_num = buffer[name_len+9];
-          int num_params = buffer[name_len+10];
+          unsigned int num_params = buffer[name_len+10];
 
           if (eqn_num < 0 || eqn_num > 3) {
             printf("%s  invalid %s equation type (%d)\n",
@@ -2858,7 +2858,7 @@ FIXME: make sure bit 31 (0x80000000) is 0
         int remainder = toread - name_len - 2;
         int bytes = (bps >> 3);
         int entry_sz = 4*bytes + 2;
-        int nsplt = remainder / entry_sz;
+        unsigned int nsplt = remainder / entry_sz;
 
         if (remainder < 0) {
           printf("%s  invalid %slength\n",  /* or input buffer too small */
@@ -2890,7 +2890,7 @@ FIXME: make sure bit 31 (0x80000000) is 0
         }
         if (printpal && no_err(kMinorError)) {
           char *spc;
-          int i, j = name_len+2, jstep = ((bytes == 1) ? 6 : 10);
+          unsigned int i, j = name_len+2, jstep = ((bytes == 1) ? 6 : 10);
 
           if (nsplt < 10)
             spc = "  ";
@@ -3354,7 +3354,6 @@ FIXME: add support for decompressing/printing zTXt
         printf("\n    Frame data, sequence number %lu\n", sequence_number);
       }
 
-      have_fdAT = 1;
       just_seen_fcTL = 0;
       last_is_IDAT = last_is_JDAT = 0;
 
@@ -4710,8 +4709,8 @@ FIXME: add support for decompressing/printing zTXt
           uch comp_mode     = buf[2];
           uch orient        = buf[3];
           uch offset_origin = buf[4];
-          long xoff         = LG(buf+5);
-          long yoff         = LG(buf+9);
+          ulg xoff         = LG(buf+5);
+          ulg yoff         = LG(buf+9);
           uch bdry_origin   = buf[13];
           long left_clip    = LG(buf+14);
           long right_clip   = LG(buf+18);
